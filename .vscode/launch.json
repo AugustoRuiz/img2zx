@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Archivo actual",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [ "-i", "tilestcodaugusto.png",
+                      "-o", "tiles.asm",
+                      "-p", "paperValues.txt",
+                      "-w", "16",
+                      "-h", "16",
+                      "-x" ]
+        }
+    ]
+}
