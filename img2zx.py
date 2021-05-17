@@ -34,8 +34,13 @@ def printHelp():
     print ("Note on file paths: If there are spaces in the path, use double quotes or scape spaces.")
     print ("")
     print ("The paper values file is a text file with the paper color that is used in each character. Characters are read left to right, then up to down, for the full image.")
+    print ("You can specify the character ink with the paper value. The format used is: ")
+    print ("    Bits 0-3: Paper value")
+    print ("    Bits 4-7: Ink value")
+    print ("This is most useful for empty tiles (where no ink pixels are found, and the tool will always specify black as the ink if not specified.")
     print ("")
-
+    print ("Enjoy!")
+ 
 def validateArguments(argv):
     result = {}
     try:
@@ -132,7 +137,14 @@ def parseTile(tile, paperValues, byChar):
     inkColors = numpy.full(paperValues.shape, -1)
     tileHeight = tile.shape[0]
     tileWidth = tile.shape[1]
+    pValues = numpy.copy(paperValues)
 
+    for py in range(paperValues.shape[0]):
+        for px in range(paperValues.shape[1]):
+            if(pValues[py,px] & 0b11110000) != 0:
+                inkColors[py,px] = (paperValues[py,px] & 0b11110000) >> 4
+                pValues[py,px] = paperValues[py,px] & 0b001111
+    
     if byChar:
         cy = 0    
         for y in range(0, tileHeight, 8):
@@ -145,13 +157,13 @@ def parseTile(tile, paperValues, byChar):
                     for offsetX in range(8):
                         byteValue = byteValue << 1
                         pixColor = tile[y+offsetY,x+offsetX]
-                        if(pixColor != paperValues[cy,cx]):
+                        if(pixColor != pValues[cy,cx]):
                             byteValue = byteValue | 1
                             if inkColors[cy,cx] == -1:
                                 inkColors[cy,cx] = pixColor
                             else:
                                 if inkColors[cy,cx] != pixColor:
-                                    print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, paperValues[cy,cx], inkColors[cy,cx])
+                                    print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, pValues[cy,cx], inkColors[cy,cx])
 
                     result = "{} {},".format(result, byteValue)
                 cx = cx + 1
@@ -167,13 +179,13 @@ def parseTile(tile, paperValues, byChar):
                 for offsetX in range(8):
                     byteValue = byteValue << 1
                     pixColor = tile[y,x+offsetX]
-                    if(pixColor != paperValues[cy,cx]):
+                    if(pixColor != pValues[cy,cx]):
                         byteValue = byteValue | 1
                         if inkColors[cy,cx] == -1:
                             inkColors[cy,cx] = pixColor
                         else:
                             if inkColors[cy,cx] != pixColor:
-                                print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, paperValues[cy,cx], inkColors[cy,cx])
+                                print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, pValues[cy,cx], inkColors[cy,cx])
                 result = "{} {},".format(result, byteValue)
                 cx = cx + 1
             result = result[:-1]
@@ -184,8 +196,8 @@ def parseTile(tile, paperValues, byChar):
         for cx in range(inkColors.shape[1]):
             if(inkColors[cy,cx] == -1):
                 inkColors[cy,cx] = 0
-            brightness = int(paperValues[cy,cx] > 7 or inkColors[cy,cx] > 7)
-            attrValue = (inkColors[cy,cx] & 0x7) | ((paperValues[cy,cx] & 0x7) << 3) | brightness << 6
+            brightness = int(pValues[cy,cx] > 7 or inkColors[cy,cx] > 7)
+            attrValue = (inkColors[cy,cx] & 0x7) | ((pValues[cy,cx] & 0x7) << 3) | brightness << 6
             result = "{} {},".format(result, attrValue)
     result = "{}\n".format(result[:-1])
 
