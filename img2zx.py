@@ -3,7 +3,7 @@ import os.path
 from cv2 import cv2
 import numpy
 
-# Number	Binary value	Dark (RGB)  Bright (RGB)    name	
+# Number	Binary value	Dark (RGB)  Bright (RGB)    name
 # 0	        000	            #000000	    #000000	        black
 # 1	        001	            #0000D7	    #0000FF         blue
 # 2	        010	            #D70000	    #FF0000	        red
@@ -13,8 +13,15 @@ import numpy
 # 6	        110	            #D7D700	    #FFFF00	        yellow
 # 7	        111	            #D7D7D7	    #FFFFFF	        white
 
-ZX_PALETTE =    [0x000000, 0x0000D7, 0xD70000, 0xD700D7, 0x00D700, 0x00D7D7, 0xD7D700, 0xD7D7D7, 
-                 0x000000, 0x0000FF, 0xFF0000, 0xFF00FF, 0x00FF00, 0x00FFFF, 0xFFFF00, 0xFFFFFF]
+ZX_PALETTE =    [[0x00, 0x00, 0x00], [0x00, 0x00, 0xD7], [0xD7, 0x00, 0x00], [0xD7, 0x00, 0xD7], 
+                 [0x00, 0xD7, 0x00], [0x00, 0xD7, 0xD7], [0xD7, 0xD7, 0x00], [0xD7, 0xD7, 0xD7],
+                 [0x00, 0x00, 0x00], [0x00, 0x00, 0xFF], [0xFF, 0x00, 0x00], [0xFF, 0x00, 0xFF], 
+                 [0x00, 0xFF, 0x00], [0x00, 0xFF, 0xFF], [0xFF, 0xFF, 0x00], [0xFF, 0xFF, 0xFF]]
+
+ZX_PALETTE_NAMES = ["BLACK", "BLUE", "RED", "MAGENTA", 
+                    "GREEN", "CYAN", "YELLOW", "WHITE",
+                    "LIGHT BLACK", "LIGHT BLUE", "LIGHT RED", "LIGHT MAGENTA", 
+                    "LIGHT GREEN", "LIGHT CYAN", "LIGHT YELLOW", "LIGHT WHITE"]
 
 def printHelp():
     print ("img2zx.py -i <image file> -p <paper values file> -w <tile width> -h <tile height> [-o <output> -n <tile label name> -c -x]")
@@ -40,7 +47,7 @@ def printHelp():
     print ("This is most useful for empty tiles (where no ink pixels are found, and the tool will always specify black as the ink if not specified.")
     print ("")
     print ("Enjoy!")
- 
+
 def validateArguments(argv):
     result = {}
     try:
@@ -93,8 +100,7 @@ def getPaletteColor(rgbValues):
     minDistance = float('inf')
     colorIdx = 0
     for c in ZX_PALETTE:
-        zxArray = [(c & 0xFF0000) >> 16, (c & 0xFF00) >> 8, (c & 0xFF)]
-        dist = numpy.linalg.norm(zxArray - rgbValues)
+        dist = numpy.linalg.norm(c - rgbValues)
         if dist < minDistance:
             minDistance = dist
             nearestColor = colorIdx
@@ -132,6 +138,9 @@ def getPaperValues(pFile):
         result = numpy.array([[int(x) for x in line.split()] for line in f])
     return result
 
+def getColorDescription(col):
+    return "{} ({})".format(col, ZX_PALETTE_NAMES[col])
+
 def parseTile(tile, paperValues, byChar):
     result = ";; Pixel data"
     inkColors = numpy.full(paperValues.shape, -1)
@@ -144,14 +153,14 @@ def parseTile(tile, paperValues, byChar):
             if(pValues[py,px] & 0b11110000) != 0:
                 inkColors[py,px] = (paperValues[py,px] & 0b11110000) >> 4
                 pValues[py,px] = paperValues[py,px] & 0b001111
-    
+
     if byChar:
-        cy = 0    
+        cy = 0
         for y in range(0, tileHeight, 8):
             cx = 0
             for x in range(0, tileWidth, 8):
                 result = "{}\n;; Char {},{}\nDEFB ".format(result, cx, cy)
-                
+
                 for offsetY in range(8):
                     byteValue = 0
                     for offsetX in range(8):
@@ -163,7 +172,7 @@ def parseTile(tile, paperValues, byChar):
                                 inkColors[cy,cx] = pixColor
                             else:
                                 if inkColors[cy,cx] != pixColor:
-                                    print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, pValues[cy,cx], inkColors[cy,cx])
+                                    print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y+offsetY, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
 
                     result = "{} {},".format(result, byteValue)
                 cx = cx + 1
@@ -185,7 +194,7 @@ def parseTile(tile, paperValues, byChar):
                             inkColors[cy,cx] = pixColor
                         else:
                             if inkColors[cy,cx] != pixColor:
-                                print("WARNING: Found color {} in character with paper {} and ink {}.", pixColor, pValues[cy,cx], inkColors[cy,cx])
+                                print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
                 result = "{} {},".format(result, byteValue)
                 cx = cx + 1
             result = result[:-1]
@@ -231,9 +240,11 @@ def main(argv):
                 ofile.write("{}_{}:\n".format(argVals["tilename"], tileIdx))
                 if argVals["tileIdx"]:
                     ofile.write("DEFB {}\n".format(tileIdx))
+                print("Parsing tile ({},{})".format(tileX, tileY))
                 asm = parseTile(tiles[tileY][tileX], paperValues[tileY*yChars:(tileY+1)*yChars, tileX*xChars:(tileX+1)*xChars], argVals["bychar"])
                 ofile.write(asm)
                 tileIdx = tileIdx + 1
+    print("Done!")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
