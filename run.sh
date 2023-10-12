@@ -1,1 +1,1 @@
-docker run -it -u $(id -u):$(id -g) -v ${PWD}:/out img2zx $@
+docker run -it -u $(id -u):$(id -g) -v ${PWD}:/out img2zxbasic $@

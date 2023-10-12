@@ -2,11 +2,11 @@ FROM python:3.7.7
 
 RUN apt update; apt install -y libgl1
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
-COPY . .
+COPY img2zxbasic.py img2zxbasic.py
 
-ENTRYPOINT [ "python", "./img2zx.py" ]
+ENTRYPOINT [ "python", "./img2zxbasic.py" ]

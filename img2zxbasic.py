@@ -1,6 +1,6 @@
 import sys, getopt
 import os.path
-from cv2 import cv2
+import cv2
 import numpy
 
 # Number	Binary value	Dark (RGB)  Bright (RGB)    name
@@ -23,6 +23,9 @@ ZX_PALETTE_NAMES = ["BLACK", "BLUE", "RED", "MAGENTA",
                     "LIGHT BLACK", "LIGHT BLUE", "LIGHT RED", "LIGHT MAGENTA", 
                     "LIGHT GREEN", "LIGHT CYAN", "LIGHT YELLOW", "LIGHT WHITE"]
 
+globalTiles = []
+globalAttr = []
+
 def printHelp():
     print ("img2zx.py -i <image file> -p <paper values file> -w <tile width> -h <tile height> [-o <output> -n <tile label name> -c -x]")
     print ("")
@@ -34,9 +37,6 @@ def printHelp():
     print ("")
     print ("Optional args:")
     print (" -o <output>:               Path to output assembly.")
-    print (" -n <name>:                 Tile label name. Default value is 'tile'.")
-    print (" -c:                        Export pixel data by characters. If specified, pixel data are extracted by char. Otherwise, pixel data is extracted traversing all tile width.")
-    print (" -x:                        Include a byte indicating the tile idx. (for Sejuan ;) ).")
     print ("")
     print ("Note on file paths: If there are spaces in the path, use double quotes or scape spaces.")
     print ("")
@@ -51,15 +51,17 @@ def printHelp():
 def validateArguments(argv):
     result = {}
     try:
-        options = getopt.getopt(argv, "?i:o:p:w:h:n:cx", ["help","ifile=","ofile=","paperfile=","width=","height=","bychar","tileidx","tilename="])
+        options = getopt.getopt(argv, "?i:o:p:n:cx:b", ["help","ifile=","ofile=","paperfile=","width=","height=","bychar","tileidx","tilename="])
     except getopt.GetoptError:
         printHelp()
         sys.exit(2)
 
     result["ofile"] = "tiles.asm"
-    result["bychar"] = False
+    result["bychar"] = True
     result["tileIdx"] = False
     result["tilename"] = "tile"
+    result["tileWidth"] = 16
+    result["tileHeight"] = 16
     for arg, val in options[0]:
         if arg in ("-?", "--help"):
             printHelp()
@@ -70,16 +72,6 @@ def validateArguments(argv):
             result["ofile"] = val
         elif arg in ("-p", "--pfile"):
             result["pfile"] = val
-        elif arg in ("-w", "--width"):
-            result["tileWidth"] = val
-        elif arg in ("-h", "--height"):
-            result["tileHeight"] = val
-        elif arg in ("-c", "--bychar"):
-            result["bychar"] = True
-        elif arg in ("-x", "--tileidx"):
-            result["tileIdx"] = True
-        elif arg in ("-n", "--tilename"):
-            result["tileName"] = val
         else:
             print ("Unrecognized argument '{}' with value '{}'".format(arg, val))
 
@@ -141,8 +133,7 @@ def getPaperValues(pFile):
 def getColorDescription(col):
     return "{} ({})".format(col, ZX_PALETTE_NAMES[col])
 
-def parseTile(tile, paperValues, byChar):
-    result = ";; Pixel data"
+def parseTile(tile, paperValues):
     inkColors = numpy.full(paperValues.shape, -1)
     tileHeight = tile.shape[0]
     tileWidth = tile.shape[1]
@@ -154,74 +145,64 @@ def parseTile(tile, paperValues, byChar):
                 inkColors[py,px] = (paperValues[py,px] & 0b11110000) >> 4
                 pValues[py,px] = paperValues[py,px] & 0b001111
 
-    if byChar:
-        cy = 0
-        for y in range(0, tileHeight, 8):
-            cx = 0
-            for x in range(0, tileWidth, 8):
-                result = "{}\n;; Char {},{}\nDEFB ".format(result, cx, cy)
-
-                for offsetY in range(8):
-                    byteValue = 0
-                    for offsetX in range(8):
-                        byteValue = byteValue << 1
-                        pixColor = tile[y+offsetY,x+offsetX]
-                        if(pixColor != pValues[cy,cx]):
-                            byteValue = byteValue | 1
-                            if inkColors[cy,cx] == -1:
-                                inkColors[cy,cx] = pixColor
-                            else:
-                                if inkColors[cy,cx] != pixColor:
-                                    print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y+offsetY, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
-
-                    result = "{} {},".format(result, byteValue)
-                cx = cx + 1
-                result = result[:-1]
-            cy = cy + 1
-    else:
-        for y in range(tileHeight):
-            result = "{}\nDEFB ".format(result)
-            cx = 0
-            cy = int(y/8)
-            for x in range(0, tileWidth, 8):
+    cy = 0
+    row = []
+    for y in range(0, tileHeight, 8):
+        cx = 0
+        for x in range(0, tileWidth, 8):
+            for offsetY in range(8):
                 byteValue = 0
                 for offsetX in range(8):
                     byteValue = byteValue << 1
-                    pixColor = tile[y,x+offsetX]
+                    pixColor = tile[y+offsetY,x+offsetX]
                     if(pixColor != pValues[cy,cx]):
                         byteValue = byteValue | 1
                         if inkColors[cy,cx] == -1:
                             inkColors[cy,cx] = pixColor
                         else:
                             if inkColors[cy,cx] != pixColor:
-                                print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
-                result = "{} {},".format(result, byteValue)
-                cx = cx + 1
-            result = result[:-1]
+                                print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y+offsetY, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
 
-    result = "{}\n;; Attribute data".format(result)
-    result = "{}\nDEFB ".format(result)
+                row.append(byteValue)
+            cx = cx + 1
+        cy = cy + 1
+    globalTiles.append([row[0], row[2], row[1], row[3], row[4], row[5], row[6], row[7]])
+    globalTiles.append([row[16], row[17], row[18], row[19], row[20], row[21], row[22], row[23]])
+    globalTiles.append([row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15]])
+    globalTiles.append([row[24], row[25], row[26], row[27], row[28], row[29], row[30], row[31]])
+
     for cy in range(inkColors.shape[0]):
         for cx in range(inkColors.shape[1]):
             if(inkColors[cy,cx] == -1):
                 inkColors[cy,cx] = 0
             brightness = int(pValues[cy,cx] > 7 or inkColors[cy,cx] > 7)
             attrValue = (inkColors[cy,cx] & 0x7) | ((pValues[cy,cx] & 0x7) << 3) | brightness << 6
-            result = "{} {},".format(result, attrValue)
-    result = "{}\n".format(result[:-1])
+            globalAttr.append(attrValue)
 
-    return result
+    return ""
 
-def writeAsmHeader(ofile, argVals):
-    ofile.write(";; img2zx, a python script created by AugustoRuiz, from Retroworks, in 2020.\n")
-    ofile.write(";; Feel free to use it anyway you want. If it was useful to you, it would be nice to know :)\n")
-    ofile.write(";; Data generated from file '{}'.\n".format(argVals["ifile"]))
-    ofile.write(";; Tile Size=({},{}).\n".format(argVals["tileWidth"], argVals["tileHeight"]))
-    ofile.write(";; Paper values file '{}'.\n".format(argVals["pfile"]))
+def writeBasFile(ofile):
+    ofile.write("dim tileSet(" + str(len(globalTiles) - 1) + ",7) = { _\n")
+    for index, tile in enumerate(globalTiles):
+        print(tile)
+        ofile.write("\t{")
+        iStr = [str(tile) for tile in tile] 
+        ofile.write(",".join(iStr))
+        if index != len(tile) - 1:
+            ofile.write("}, _\n")
+        else:
+            ofile.write("} _\n")
+    ofile.write("}\n\n")
+
+    ofile.write("dim attrSet(" + str(len(globalAttr) - 1) + ") = {")
+    iStr = [str(globalAttr) for globalAttr in globalAttr] 
+    ofile.write(",".join(iStr))
+    ofile.write("}")
+        
 
 def main(argv):
     argVals = validateArguments(argv)
-
+    
     th = int(argVals["tileHeight"])
     tw = int(argVals["tileWidth"])
 
@@ -233,17 +214,12 @@ def main(argv):
 
     tileIdx = 0
     with open(argVals["ofile"], "w") as ofile:
-        writeAsmHeader(ofile, argVals)
         for tileY in range(len(tiles)):
             for tileX in range(len(tiles[tileY])):
-                ofile.write("\n;; Tile ({},{})\n".format(tileX, tileY))
-                ofile.write("{}_{}:\n".format(argVals["tilename"], tileIdx))
-                if argVals["tileIdx"]:
-                    ofile.write("DEFB {}\n".format(tileIdx))
                 print("Parsing tile ({},{})".format(tileX, tileY))
-                asm = parseTile(tiles[tileY][tileX], paperValues[tileY*yChars:(tileY+1)*yChars, tileX*xChars:(tileX+1)*xChars], argVals["bychar"])
-                ofile.write(asm)
+                parseTile(tiles[tileY][tileX], paperValues[tileY*yChars:(tileY+1)*yChars, tileX*xChars:(tileX+1)*xChars])
                 tileIdx = tileIdx + 1
+        writeBasFile(ofile)
     print("Done!")
 
 if __name__ == "__main__":

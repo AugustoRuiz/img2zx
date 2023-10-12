@@ -1,16 +1,24 @@
-# img2zx
+# img2zxbasic
 
-## General
-Simple script to convert raster images (bmp, png, gif...) into assembly files for zx spectrum tilesets
+Simple script to convert raster images (bmp, png, gif...) into basic file for zx basic Boriel and GuSprites sprite library
+Project based on [img2zx](https://github.com/AugustoRuiz/img2zx) de [Augusto Ruiz](https://github.com/AugustoRuiz), and just adapted output to [GuSprites library](https://github.com/gusmanb/GuSprites) fo [Boriel's ZX Basic](https://zxbasic.readthedocs.io/en/docs/)
 
-## Run with docker
+### Requeriments
+python 3.7.7 nor higher
 
-### Build. Just once
 ```bash
-./build.sh
+pip install -r requeriments.txt
 ```
 
 ### Run
+
+#### Python locally
+Put in paperValues.txt paper value for each tile
+
 ```bash
-./run.sh -i tilestcodaugusto.png -o /out/tiles.asm -p paperValues.txt -w 16 -h 16
+python img2zx.py -i tiles.png -p paperValues.txt -o tiles.bas 
+```
+#### Docker
+```bash
+
 ```
