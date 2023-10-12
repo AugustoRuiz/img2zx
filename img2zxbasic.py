@@ -182,13 +182,12 @@ def parseTile(tile, paperValues):
     return ""
 
 def writeBasFile(ofile):
-    ofile.write("dim tileSet(" + str(len(globalTiles) - 1) + ",7) = { _\n")
+    ofile.write("dim tileSet(" + str(len(globalTiles) - 1) + ",7) as ubyte = { _\n")
     for index, tile in enumerate(globalTiles):
-        print(tile)
         ofile.write("\t{")
         iStr = [str(tile) for tile in tile] 
         ofile.write(",".join(iStr))
-        if index != len(tile) - 1:
+        if index != len(globalTiles) - 1:
             ofile.write("}, _\n")
         else:
             ofile.write("} _\n")
