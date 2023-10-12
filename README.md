@@ -21,5 +21,5 @@ python img2zx.py -i tiles.png -p paperValues.txt -o tiles.bas
 ```
 #### Docker
 ```bash
-
+docker run -it -u $(id -u):$(id -g) -v ${PWD}:/share rtorralba/img2zxbasic -i /share/tiles.png -p /share/paperValues.txt -o /share/tiles.bas
 ```
