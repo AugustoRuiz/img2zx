@@ -1,7 +1,8 @@
 # img2zxbasic
 
-Simple script to convert raster images (bmp, png, gif...) into basic file for zx basic Boriel and GuSprites sprite library
-Project based on [img2zx](https://github.com/AugustoRuiz/img2zx) de [Augusto Ruiz](https://github.com/AugustoRuiz), and just adapted output to [GuSprites library](https://github.com/gusmanb/GuSprites) fo [Boriel's ZX Basic](https://zxbasic.readthedocs.io/en/docs/)
+Simple script to convert raster images (bmp, png, gif...) into basic file for [Boriel's ZX Basic](https://zxbasic.readthedocs.io/en/docs/) and [GuSprites](https://github.com/gusmanb/GuSprites) sprite library
+
+Project based on [img2zx](https://github.com/AugustoRuiz/img2zx) de [Augusto Ruiz](https://github.com/AugustoRuiz), and just adapted its output.
 
 ### Requeriments
 python 3.7.7 nor higher
