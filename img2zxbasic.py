@@ -171,8 +171,8 @@ def parseTile(tile, paperValues):
     globalTiles.append([row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15]])
     globalTiles.append([row[24], row[25], row[26], row[27], row[28], row[29], row[30], row[31]])
 
-    for cy in range(inkColors.shape[0]):
-        for cx in range(inkColors.shape[1]):
+    for cx in range(inkColors.shape[1]):
+        for cy in range(inkColors.shape[0]):
             if(inkColors[cy,cx] == -1):
                 inkColors[cy,cx] = 0
             brightness = int(pValues[cy,cx] > 7 or inkColors[cy,cx] > 7)
