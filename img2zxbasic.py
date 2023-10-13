@@ -166,7 +166,7 @@ def parseTile(tile, paperValues):
                 row.append(byteValue)
             cx = cx + 1
         cy = cy + 1
-    globalTiles.append([row[0], row[2], row[1], row[3], row[4], row[5], row[6], row[7]])
+    globalTiles.append([row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]])
     globalTiles.append([row[16], row[17], row[18], row[19], row[20], row[21], row[22], row[23]])
     globalTiles.append([row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15]])
     globalTiles.append([row[24], row[25], row[26], row[27], row[28], row[29], row[30], row[31]])
