@@ -30,7 +30,7 @@ def printHelp():
     print ("img2zx.py -i <image file> -p <paper values file> -w <tile width> -h <tile height> [-o <output> -n <tile label name> -c -x]")
     print ("")
     print ("Mandatory args:")
-    print (" -i <image file>:           Path to image with tileset.")
+    print (" -i <image file>:           Path to image with tileset or spriteset.")
     print (" -p <paper values file>:    Path to file that contains the paper color for each character.")
     print (" -w <tile width>:           Tile width (in characters).")
     print (" -h <tile height>:          Tile height (in characters).")
@@ -51,17 +51,16 @@ def printHelp():
 def validateArguments(argv):
     result = {}
     try:
-        options = getopt.getopt(argv, "?i:o:p:n:cx:b", ["help","ifile=","ofile=","paperfile=","width=","height=","bychar","tileidx","tilename="])
+        options = getopt.getopt(argv, "?i:o:p:t:", ["help","ifile=","ofile=","paperfile=","itype="])
     except getopt.GetoptError:
         printHelp()
         sys.exit(2)
 
-    result["ofile"] = "tiles.asm"
-    result["bychar"] = True
-    result["tileIdx"] = False
-    result["tilename"] = "tile"
-    result["tileWidth"] = 16
-    result["tileHeight"] = 16
+    result["ofile"] = "file.bas"
+    result["tileWidth"] = 8
+    result["tileHeight"] = 8
+    result["type"] = "tiles" # tiles or sprites
+
     for arg, val in options[0]:
         if arg in ("-?", "--help"):
             printHelp()
@@ -72,8 +71,14 @@ def validateArguments(argv):
             result["ofile"] = val
         elif arg in ("-p", "--pfile"):
             result["pfile"] = val
+        elif arg in ("-t", "--itype"):
+            result["type"] = val
         else:
             print ("Unrecognized argument '{}' with value '{}'".format(arg, val))
+    
+    if result['type'] == 'sprites':
+        result['tileWidth'] = 16
+        result['tileHeight'] = 16
 
     if not ("ifile" in result and "ofile" in result and "pfile" in result and "tileWidth" in result and "tileHeight" in result):
         errMsg = "ERROR: Missing argument(s):"
@@ -133,7 +138,7 @@ def getPaperValues(pFile):
 def getColorDescription(col):
     return "{} ({})".format(col, ZX_PALETTE_NAMES[col])
 
-def parseTile(tile, paperValues):
+def parseTile(tile, paperValues, type):
     inkColors = numpy.full(paperValues.shape, -1)
     tileHeight = tile.shape[0]
     tileWidth = tile.shape[1]
@@ -145,31 +150,49 @@ def parseTile(tile, paperValues):
                 inkColors[py,px] = (paperValues[py,px] & 0b11110000) >> 4
                 pValues[py,px] = paperValues[py,px] & 0b001111
 
-    cy = 0
-    row = []
-    for y in range(0, tileHeight, 8):
-        cx = 0
-        for x in range(0, tileWidth, 8):
-            for offsetY in range(8):
+    if type == "tiles":
+        cy = 0
+        row = []
+        for y in range(0, tileHeight, 8):
+            cx = 0
+            for x in range(0, tileWidth, 8):
+                for offsetY in range(8):
+                    byteValue = 0
+                    for offsetX in range(8):
+                        byteValue = byteValue << 1
+                        pixColor = tile[y+offsetY,x+offsetX]
+                        if(pixColor != pValues[cy,cx]):
+                            byteValue = byteValue | 1
+                            if inkColors[cy,cx] == -1:
+                                inkColors[cy,cx] = pixColor
+                            else:
+                                if inkColors[cy,cx] != pixColor:
+                                    print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y+offsetY, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
+
+                    row.append(byteValue)
+                cx = cx + 1
+            cy = cy + 1
+        globalTiles.append([row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]])
+    else:
+        row = []
+        for y in range(tileHeight):
+            cx = 0
+            cy = int(y/8)
+            for x in range(0, tileWidth, 8):
                 byteValue = 0
                 for offsetX in range(8):
                     byteValue = byteValue << 1
-                    pixColor = tile[y+offsetY,x+offsetX]
+                    pixColor = tile[y,x+offsetX]
                     if(pixColor != pValues[cy,cx]):
                         byteValue = byteValue | 1
                         if inkColors[cy,cx] == -1:
                             inkColors[cy,cx] = pixColor
                         else:
                             if inkColors[cy,cx] != pixColor:
-                                print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y+offsetY, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
-
+                                print("WARNING: At pixel ({},{}): Found color {} in character\n         with paper {} and ink {}.".format(x+offsetX, y, getColorDescription(pixColor), getColorDescription(pValues[cy,cx]), getColorDescription(inkColors[cy,cx])))
                 row.append(byteValue)
-            cx = cx + 1
-        cy = cy + 1
-    globalTiles.append([row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]])
-    globalTiles.append([row[16], row[17], row[18], row[19], row[20], row[21], row[22], row[23]])
-    globalTiles.append([row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15]])
-    globalTiles.append([row[24], row[25], row[26], row[27], row[28], row[29], row[30], row[31]])
+                cx = cx + 1
+        globalTiles.append(row)
 
     for cx in range(inkColors.shape[1]):
         for cy in range(inkColors.shape[0]):
@@ -181,22 +204,33 @@ def parseTile(tile, paperValues):
 
     return ""
 
-def writeBasFile(ofile):
-    ofile.write("dim tileSet(" + str(len(globalTiles) - 1) + ",7) as ubyte = { _\n")
-    for index, tile in enumerate(globalTiles):
-        ofile.write("\t{")
-        iStr = [str(tile) for tile in tile] 
-        ofile.write(",".join(iStr))
-        if index != len(globalTiles) - 1:
-            ofile.write("}, _\n")
-        else:
-            ofile.write("} _\n")
-    ofile.write("}\n\n")
+def getBas(ofile, type):
+    if type == 'tiles':
+        strOut = "dim tileSet(" + str(len(globalTiles) - 1) + ",7) as ubyte = { _\n"
+        for index, tile in enumerate(globalTiles):
+            strOut += "\t{"
+            iStr = [str(tile) for tile in tile] 
+            strOut += ",".join(iStr)
+            if index != len(globalTiles) - 1:
+                strOut += "}, _\n"
+            else:
+                strOut += "} _\n"
+        strOut += "}\n\n"
 
-    ofile.write("dim attrSet(" + str(len(globalAttr) - 1) + ") = {")
-    iStr = [str(globalAttr) for globalAttr in globalAttr] 
-    ofile.write(",".join(iStr))
-    ofile.write("}")
+        strOut += "dim attrSet(" + str(len(globalAttr) - 1) + ") = {"
+        iStr = [str(globalAttr) for globalAttr in globalAttr] 
+        strOut += ",".join(iStr)
+        strOut += "}"
+    else:
+        strOut = ""
+        for index, tile in enumerate(globalTiles):
+            strOut += "dim sprite" + str(index) + "(31) as ubyte = {"
+            iStr = [str(tile) for tile in tile]
+            strOut += ",".join(iStr)
+            strOut += "} _\n"
+            strOut += "spritesSet(" + str(index) + ") = Create2x2Sprite(@sprite(" + str(index) + "))\n"
+
+    print(strOut)
         
 
 def main(argv):
@@ -215,11 +249,9 @@ def main(argv):
     with open(argVals["ofile"], "w") as ofile:
         for tileY in range(len(tiles)):
             for tileX in range(len(tiles[tileY])):
-                print("Parsing tile ({},{})".format(tileX, tileY))
-                parseTile(tiles[tileY][tileX], paperValues[tileY*yChars:(tileY+1)*yChars, tileX*xChars:(tileX+1)*xChars])
+                parseTile(tiles[tileY][tileX], paperValues[tileY*yChars:(tileY+1)*yChars, tileX*xChars:(tileX+1)*xChars], argVals["type"])
                 tileIdx = tileIdx + 1
-        writeBasFile(ofile)
-    print("Done!")
+        getBas(ofile, argVals["type"])
 
 if __name__ == "__main__":
    main(sys.argv[1:])
