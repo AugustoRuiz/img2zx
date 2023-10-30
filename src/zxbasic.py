@@ -1,15 +1,16 @@
 skipSpriteTiles = [2,3,6,7,10,11]
 def getSpritesBas(tiles):
-    strOut = ""
+    strDeclarationsOut = ""
+    strInitializationsOut = ""
 
     for index, tile in enumerate(tiles):
-        strOut += "dim sprite" + str(index) + "(31) as ubyte = {"
+        strDeclarationsOut += "dim sprite" + str(index) + "(31) as ubyte = {"
         iStr = [str(tile) for tile in tile]
-        strOut += ",".join(iStr)
-        strOut += "} _\n"
-        strOut += "spritesSet(" + str(index) + ") = Create2x2Sprite(@sprite(" + str(index) + "))\n"
+        strDeclarationsOut += ",".join(iStr)
+        strDeclarationsOut += "} _\n"
+        strInitializationsOut += "spritesSet(" + str(index) + ") = Create2x2Sprite(@sprite(" + str(index) + "))\n"
 
-    return strOut
+    return strDeclarationsOut + "\n" + strInitializationsOut
 
 def getTilesBas(tiles, attr = {}):
     strOut = "dim tileSet(" + str(len(tiles) - 1) + ",7) as ubyte = { _\n"
