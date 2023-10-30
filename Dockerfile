@@ -7,6 +7,6 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
-COPY src/* .
+COPY src .
 
 ENTRYPOINT [ "python", "./img2zxbasic.py" ]
