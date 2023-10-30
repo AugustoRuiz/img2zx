@@ -8,7 +8,7 @@ def getSpritesBas(tiles):
         iStr = [str(tile) for tile in tile]
         strDeclarationsOut += ",".join(iStr)
         strDeclarationsOut += "}\n"
-        strInitializationsOut += "spritesSet" + str(index) + " = Create2x2Sprite(@sprite(" + str(index) + "))\n"
+        strInitializationsOut += "spritesSet(" + str(index) + ") = Create2x2Sprite(@sprite" + str(index) + ")\n"
 
     return strDeclarationsOut + "\n" + strInitializationsOut
 
