@@ -1,1 +1,1 @@
-docker run -it -u $(id -u):$(id -g) -v ${PWD}:/out rtorralba/img2zxbasic $@
+docker run -it -u $(id -u):$(id -g) -v ${PWD}:/share rtorralba/img2zxbasic $@
