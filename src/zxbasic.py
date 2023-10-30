@@ -1,4 +1,3 @@
-skipSpriteTiles = [2,3,6,7,10,11]
 def getSpritesBas(tiles):
     strDeclarationsOut = ""
     strInitializationsOut = ""
@@ -10,7 +9,7 @@ def getSpritesBas(tiles):
         strDeclarationsOut += "}\n"
         strInitializationsOut += "spritesSet(" + str(index) + ") = Create2x2Sprite(@sprite" + str(index) + ")\n"
 
-    return strDeclarationsOut + "\n" + strInitializationsOut
+    return strDeclarationsOut + "\n" + "dim spritesSet(31) as ubyte\n" + strInitializationsOut
 
 def getTilesBas(tiles, attr = {}):
     strOut = "dim tileSet(" + str(len(tiles) - 1) + ",7) as ubyte = { _\n"
